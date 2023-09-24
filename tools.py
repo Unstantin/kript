@@ -33,31 +33,34 @@ endpoints = [
         'https://rpc.ankr.com/harmony'
     ]
 
-def get_evm_balance(wallet_address, endpoints):
+def get_evm_native_balance(wallet_address, endpoints):
     checksum_address = Web3.to_checksum_address(wallet_address)
 
-    for p in endpoints:
+    res = {}
+    for p in tqdm(endpoints):
         web3 = Web3(Web3.HTTPProvider(p))
-        balance = web3.eth.get_balance(checksum_address)
+        balance = float(web3.from_wei(web3.eth.get_balance(checksum_address), 'ether'))
         name = p[-p[::-1].find('/'):]
-        print(f'{name:10} {balance}')
+        res[name] = balance
+    return res
 
-def get_erc20_of_wallet(wallet_address):
-    for address_erc20 in contracts_erc20:
-        web3 = Web3(Web3.HTTPProvider('https://ethereum.blockpi.network/v1/rpc/public'))
+def get_erc20_of_wallet(wallet_address, contracts_erc20, provider):
+    res = {}
+    for address_erc20 in tqdm(contracts_erc20):
+        web3 = Web3(Web3.HTTPProvider(provider))
 
         checksum_erc20 = web3.to_checksum_address(address_erc20)
         contract = web3.eth.contract(address=checksum_erc20, abi=ABI)
 
         checksum_wallet = web3.to_checksum_address(wallet_address)
         balance = contract.functions.balanceOf(checksum_wallet).call()
-        balance_humanity = web3.from_wei(balance, 'ether')
-        print(balance_humanity)
+        res[address_erc20] = float(web3.from_wei(balance, 'ether'))
+    return res
 
-def get_erc20_top(N):
+def get_erc20_top(N, url):
     service = ChromeService(executable_path=ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service)
-    driver.get('https://etherscan.io/tokens')
+    driver.get(url)
     driver.find_element(By.XPATH, '//*[@id="btnCookie"]').click()
 
     res = []
@@ -100,8 +103,9 @@ def get_erc20_top(N):
 
 test_wallet_address = '0x7bfee91193d9df2ac0bfe90191d40f23c773c060'
 
-#get_erc20_of_wallet(test_wallet_address)
-#get_erc20_top(100)
+#print(get_evm_native_balance(test_wallet_address, endpoints))
+#print(get_erc20_of_wallet(test_wallet_address, contracts_erc20, 'https://ethereum.blockpi.network/v1/rpc/public'))
+#get_erc20_top(100, 'https://etherscan.io/tokens')
 
 # with open("data.json", "r") as f:
 #      data = json.load(f)
